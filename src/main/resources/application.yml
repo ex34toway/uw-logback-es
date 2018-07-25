@@ -1,0 +1,6 @@
+uw:
+  logback:
+    es:
+      username: admin
+      password: admin
+      clusters: http://localhost:9200
