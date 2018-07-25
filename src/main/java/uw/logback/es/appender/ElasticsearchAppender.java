@@ -44,7 +44,7 @@ public class ElasticsearchAppender<E> extends AbstractElasticsearchAppender<E> {
                 addError("Elasticsearch post failed (HTTP " + responseCode + ").  Response body:\n" + message);
             }
         } catch (final IOException e) {
-            addError("IOException while attempting to communicate with Loggly", e);
+            addError("IOException while attempting to communicate with Elasticsearch", e);
         }
     }
 
