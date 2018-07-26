@@ -1,6 +1,5 @@
 package uw.logback.es.util;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.concurrent.BlockingDeque;
@@ -19,13 +18,13 @@ public class DiscardingRollingOutputStream extends OutputStream {
 
     public static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
-    private ByteArrayOutputStream currentBucket;
+    private okio.Buffer currentBucket;
 
     private final ReentrantLock currentBucketLock = new ReentrantLock();
 
-    private final BlockingDeque<ByteArrayOutputStream> filledBuckets;
+    private final BlockingDeque<okio.Buffer> filledBuckets;
 
-    private final ConcurrentLinkedQueue<ByteArrayOutputStream> recycledBucketPool;
+    private final ConcurrentLinkedQueue<okio.Buffer> recycledBucketPool;
 
     private long maxBucketSizeInBytes;
 
@@ -41,9 +40,9 @@ public class DiscardingRollingOutputStream extends OutputStream {
         }
 
         this.maxBucketSizeInBytes = maxBucketSizeInBytes;
-        this.filledBuckets = new LinkedBlockingDeque<ByteArrayOutputStream>(maxBucketCount);
+        this.filledBuckets = new LinkedBlockingDeque<okio.Buffer>(maxBucketCount);
 
-        this.recycledBucketPool = new ConcurrentLinkedQueue<ByteArrayOutputStream>();
+        this.recycledBucketPool = new ConcurrentLinkedQueue<okio.Buffer>();
         this.currentBucket = newBucket();
     }
 
@@ -52,7 +51,7 @@ public class DiscardingRollingOutputStream extends OutputStream {
     public void write(int b) throws IOException {
         currentBucketLock.lock();
         try {
-            currentBucket.write(b);
+            currentBucket.writeInt(b);
             rollCurrentBucketIfNeeded();
         } finally {
             currentBucketLock.unlock();
@@ -146,7 +145,7 @@ public class DiscardingRollingOutputStream extends OutputStream {
      *
      * @param discardedBucket the discarded bucket
      */
-    protected void onBucketDiscard(ByteArrayOutputStream discardedBucket) {
+    protected void onBucketDiscard(okio.Buffer discardedBucket) {
 
     }
 
@@ -155,7 +154,7 @@ public class DiscardingRollingOutputStream extends OutputStream {
      *
      * @param rolledBucket the discarded bucket
      */
-    protected void onBucketRoll(ByteArrayOutputStream rolledBucket) {
+    protected void onBucketRoll(okio.Buffer rolledBucket) {
 
     }
 
@@ -165,10 +164,10 @@ public class DiscardingRollingOutputStream extends OutputStream {
      *
      * @return the bucket ready to use
      */
-    protected ByteArrayOutputStream newBucket() {
-        ByteArrayOutputStream bucket = recycledBucketPool.poll();
+    protected okio.Buffer newBucket() {
+        okio.Buffer bucket = recycledBucketPool.poll();
         if (bucket == null) {
-            bucket = new ByteArrayOutputStream();
+            bucket = new okio.Buffer();
         }
         return bucket;
     }
@@ -178,15 +177,15 @@ public class DiscardingRollingOutputStream extends OutputStream {
      *
      * @param bucket the bucket to recycle
      */
-    public void recycleBucket(ByteArrayOutputStream bucket) {
-        bucket.reset();
+    public void recycleBucket(okio.Buffer bucket) {
+        bucket.clear();
         recycledBucketPool.offer(bucket);
     }
 
     /**
      * Return the filled buckets
      */
-    public BlockingDeque<ByteArrayOutputStream> getFilledBuckets() {
+    public BlockingDeque<okio.Buffer> getFilledBuckets() {
         return filledBuckets;
     }
 
@@ -199,7 +198,7 @@ public class DiscardingRollingOutputStream extends OutputStream {
 
     public long getCurrentOutputStreamSize() {
         long sizeInBytes = 0;
-        for (ByteArrayOutputStream bucket : filledBuckets) {
+        for (okio.Buffer bucket : filledBuckets) {
             sizeInBytes += bucket.size();
         }
         sizeInBytes += currentBucket.size();

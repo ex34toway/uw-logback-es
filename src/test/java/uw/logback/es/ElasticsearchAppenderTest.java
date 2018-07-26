@@ -8,6 +8,8 @@ import org.mockito.junit.MockitoJUnitRunner;
 import uw.logback.es.appender.AbstractElasticsearchAppender;
 import uw.logback.es.appender.ElasticsearchAppender;
 
+import java.sql.Timestamp;
+
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
 
@@ -31,7 +33,9 @@ public class ElasticsearchAppenderTest {
         String loggerName = "elastic-debug-log";
         ILoggingEvent eventToLog = mock(ILoggingEvent.class);
         given(eventToLog.getLoggerName()).willReturn(loggerName);
-        appender.setEndpoint("http://192.168.88.16:9200/appaname/logs");
+        appender.setEsHost("http://192.168.88.16:9200");
+        appender.setIndex("appaname");
+        appender.setIndexType("logs");
         appender.start();
 
         appender.doAppend(eventToLog);

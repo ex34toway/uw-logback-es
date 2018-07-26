@@ -36,9 +36,9 @@ public class ElasticsearchAppender<Event> extends AbstractElasticsearchAppender<
 
     private void postToElasticsearch(final okio.Buffer buffer) {
         try {
-            httpInterface.requestForObject(new Request.Builder().url(endpoint)
-                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8,buffer))
-                    .build(),String.class);
+            httpInterface.requestForObject(new Request.Builder().url(esHost + "/" + getIndex() + "/" + getIndexType())
+                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8, buffer))
+                    .build(), String.class);
         } catch (final Exception e) {
             addError("IOException while attempting to communicate with Elasticsearch", e);
         }

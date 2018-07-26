@@ -1,6 +1,6 @@
 package uw.logback.es.appender;
 
-import ch.qos.logback.ext.loggly.io.IoUtils;
+import okio.Buffer;
 import uw.logback.es.ElasticsearchBatchAppenderMBean;
 import uw.logback.es.util.DiscardingRollingOutputStream;
 import uw.logback.es.util.EncoderUtils;
@@ -9,8 +9,6 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.*;
 import java.lang.management.ManagementFactory;
-import java.net.HttpURLConnection;
-import java.sql.Timestamp;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -69,21 +67,15 @@ public class ElasticsearchBatchAppender<Event> extends AbstractElasticsearchAppe
                 maxBucketSizeInKilobytes * 1024,
                 maxNumberOfBuckets) {
             @Override
-            protected void onBucketDiscard(ByteArrayOutputStream discardedBucket) {
+            protected void onBucketDiscard(okio.Buffer discardedBucket) {
                 if (isDebug()) {
                     addInfo("Discard bucket - " + getDebugInfo());
                 }
-                String s = new Timestamp(System.currentTimeMillis()) + " - OutputStream is full, discard previous logs" + LINE_SEPARATOR;
-                try {
-                    getFilledBuckets().peekLast().write(s.getBytes(EncoderUtils.LOG_CHARSET));
-                    addWarn(s);
-                } catch (IOException e) {
-                    addWarn("Exception appending warning message '" + s + "'", e);
-                }
+                addWarn(EncoderUtils.DATE_FORMAT.format(System.currentTimeMillis()) + " - OutputStream is full, discard previous logs" + LINE_SEPARATOR);
             }
 
             @Override
-            protected void onBucketRoll(ByteArrayOutputStream rolledBucket) {
+            protected void onBucketRoll(okio.Buffer rolledBucket) {
                 if (isDebug()) {
                     addInfo("Roll bucket - " + getDebugInfo());
                 }
@@ -153,54 +145,36 @@ public class ElasticsearchBatchAppender<Event> extends AbstractElasticsearchAppe
         }
 
         outputStream.rollCurrentBucketIfNotEmpty();
-        BlockingDeque<ByteArrayOutputStream> filledBuckets = outputStream.getFilledBuckets();
-
-        ByteArrayOutputStream bucket;
-
-        while ((bucket = filledBuckets.poll()) != null) {
-            try {
-                InputStream in = new ByteArrayInputStream(bucket.toByteArray());
-                processLogEntries(in);
-            } catch (Exception e) {
-                addWarn("Internal error", e);
-            }
-            outputStream.recycleBucket(bucket);
+        BlockingDeque<okio.Buffer> filledBuckets = outputStream.getFilledBuckets();
+        try {
+            processLogEntries(filledBuckets);
+        } catch (Exception e) {
+            addWarn("Internal error", e);
         }
     }
 
     /**
      * Send log entries to Elasticsearch
      */
-    protected void processLogEntries(InputStream in) throws IOException {
+    protected void processLogEntries(BlockingDeque<okio.Buffer> filledBuckets) throws Exception {
         long nanosBefore = System.nanoTime();
         try {
-
-            HttpURLConnection conn = null;//getHttpConnection(new URL(endpointUrl));
-            BufferedOutputStream out = new BufferedOutputStream(conn.getOutputStream());
-
-            long len = IoUtils.copy(in, out);
-            sentBytes.addAndGet(len);
-
-            out.flush();
-            out.close();
-
-            int responseCode = conn.getResponseCode();
-            String response = super.readResponseBody(conn.getInputStream());
-            switch (responseCode) {
-                case HttpURLConnection.HTTP_OK:
-                case HttpURLConnection.HTTP_ACCEPTED:
-                    sendSuccessCount.incrementAndGet();
-                    break;
-                default:
-                    sendExceptionCount.incrementAndGet();
-                    addError("ElasticsearchAppender server-side exception: " + responseCode + ": " + response);
-            }
-            // force url connection recycling
-            try {
-                conn.getInputStream().close();
-                conn.disconnect();
-            } catch (Exception e) {
-                // swallow exception
+            okio.Buffer sendBuffer = new Buffer();
+            okio.Buffer bucket;
+            while ((bucket = filledBuckets.poll()) != null) {
+                try {
+                    sendBuffer.writeUtf8("{\"index\":{\"_index\":\"")
+                            .writeUtf8(getIndex())
+                            .writeUtf8("\",\"_type\":\"")
+                            .writeUtf8(getIndexType())
+                            .writeUtf8("\"}}\n");
+                    sendBuffer.write(EncoderUtils.lineSeparatorBytes);
+                    bucket.writeAll(sendBuffer);
+                    sendBuffer.write(EncoderUtils.lineSeparatorBytes);
+                } catch (Exception e) {
+                    addWarn("Internal error", e);
+                }
+                outputStream.recycleBucket(bucket);
             }
         } catch (Exception e) {
             sendExceptionCount.incrementAndGet();

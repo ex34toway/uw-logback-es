@@ -10,11 +10,9 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import org.apache.commons.lang.time.FastDateFormat;
 import uw.logback.es.util.EncoderUtils;
 
 import java.io.ByteArrayOutputStream;
-import java.util.TimeZone;
 
 /**
  * Elasticsearch 编码器
@@ -28,11 +26,6 @@ public class ElasticsearchEncoder<Event extends ILoggingEvent> extends EncoderBa
      * Empty bytes
      */
     private static final byte[] EMPTY_BYTES = new byte[0];
-
-    /**
-     * 时间格式化器
-     */
-    private static final FastDateFormat formatter = FastDateFormat.getInstance("yyyy-MM-dd'T'HH:mm:ss.SSSZZ", (TimeZone) null);
 
     /**
      * Used to create the necessary {@link JsonGenerator}s for generating JSON.
@@ -76,7 +69,7 @@ public class ElasticsearchEncoder<Event extends ILoggingEvent> extends EncoderBa
         try {
             JsonGenerator jsonGenerator = jsonFactory.createGenerator(outputStream, JsonEncoding.UTF8);
             jsonGenerator.writeStartObject();
-            jsonGenerator.writeStringField("@timestamp",formatter.format(event.getTimeStamp()));
+            jsonGenerator.writeStringField("@timestamp",EncoderUtils.DATE_FORMAT.format(event.getTimeStamp()));
             jsonGenerator.writeNumberField("@version", 1);
             jsonGenerator.writeStringField("appname", appname);
             jsonGenerator.writeStringField( "host", host);

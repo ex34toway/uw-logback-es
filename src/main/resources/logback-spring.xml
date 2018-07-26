@@ -8,7 +8,9 @@
                 resource="org/springframework/boot/logging/logback/console-appender.xml"/>
         <appender name="ES"
                   class="uw.logback.es.appender.ElasticsearchAppender">
-            <endpoint>http://localhost:9200/appaname/logs</endpoint>
+            <esHost>http://localhost:9200</esHost>
+            <index>uw-auth-center2</index>
+            <indexType>logs</indexType>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
             <encoder charset="UTF-8"
                      class="uw.logback.es.encoder.ElasticsearchEncoder">

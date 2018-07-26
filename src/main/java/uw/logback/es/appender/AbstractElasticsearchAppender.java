@@ -6,7 +6,6 @@ import ch.qos.logback.core.encoder.Encoder;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.Charset;
 
 /**
  * 日志接收器抽象接口
@@ -16,18 +15,20 @@ import java.nio.charset.Charset;
  */
 public abstract class AbstractElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Event> {
 
-    public static final String DEFAULT_LAYOUT_PATTERN = "%d{\"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\",UTC} %-5level [%thread] %logger: %m%n";
-    protected static final Charset UTF_8 = Charset.forName("UTF-8");
-
     /**
      * Elasticsearch Web API endpoint
      */
-    protected String endpoint;
+    protected String esHost;
 
     /**
-     * Created layout Implicitly?
+     * 索引[默认appname]
      */
-    protected boolean layoutCreatedImplicitly = false;
+    protected String index;
+
+    /**
+     * 索引类型
+     */
+    protected String indexType = "logs";
 
     /**
      * pattern
@@ -46,14 +47,14 @@ public abstract class AbstractElasticsearchAppender<Event> extends Unsynchronize
 
     @Override
     public void start() {
+        if (index == null) {
+            addError("No elasticsearch index was configured. Use <index> to specify the fully qualified class name of the encoder to use");
+        }
         if (encoder == null) {
             addError("No encoder was configured. Use <encoder> to specify the fully qualified class name of the encoder to use");
         }
-        /*
-         * Destinations can be configured via <remoteHost>/<port> OR <destination> but not both!
-         */
-        if (endpoint == null) {
-            addError("No config for <endpoint>");
+        if (esHost == null) {
+            addError("No config for <esHost>");
         }
         super.start();
     }
@@ -76,21 +77,29 @@ public abstract class AbstractElasticsearchAppender<Event> extends Unsynchronize
         return baos.toByteArray();
     }
 
-    protected String readResponseBody(final InputStream input) throws IOException {
-        try {
-            final byte[] bytes = toBytes(input);
-            return new String(bytes, UTF_8);
-        } finally {
-            input.close();
-        }
+
+    public String getEsHost() {
+        return esHost;
     }
 
-    public String getEndpoint() {
-        return endpoint;
+    public void setEsHost(String esHost) {
+        this.esHost = esHost;
     }
 
-    public void setEndpoint(String endpoint) {
-        this.endpoint = endpoint;
+    public String getIndex() {
+        return index;
+    }
+
+    public void setIndex(String index) {
+        this.index = index;
+    }
+
+    public String getIndexType() {
+        return indexType;
+    }
+
+    public void setIndexType(String indexType) {
+        this.indexType = indexType;
     }
 
     public String getPattern() {
