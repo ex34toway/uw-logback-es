@@ -139,7 +139,7 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
     @Override
     public void stop() {
         // 赶紧处理一把
-        processLogBucket();
+        processLogBucket(true);
         daemonExporter.readyDestroy();
         if (registeredObjectName != null) {
             try {
@@ -163,11 +163,11 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
     /**
      * Send log entries to Elasticsearch
      */
-    private void processLogBucket() {
+    private void processLogBucket(boolean force) {
         bucketLock.lock();
         List<okio.Buffer> bucketData = null;
         try {
-            if (bucketList.size() > maxNumberOfBuckets) {
+            if (force || bucketList.size() > maxNumberOfBuckets) {
                 bucketData = bucketList;
                 bucketList = Lists.newArrayList();
             }
@@ -292,7 +292,7 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
                 try {
                     if (nextScanTime < System.currentTimeMillis()) {
                         nextScanTime = System.currentTimeMillis() + flushIntervalInMillSeconds;
-                        processLogBucket();
+                        processLogBucket(false);
                     }
                     // 休息一会儿
                     Thread.sleep(flushIntervalInMillSeconds / 2);
