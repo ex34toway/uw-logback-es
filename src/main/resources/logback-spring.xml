@@ -7,7 +7,7 @@
         <include
                 resource="org/springframework/boot/logging/logback/console-appender.xml"/>
         <appender name="ES"
-                  class="uw.logback.es.appender.ElasticsearchAppender">
+                  class="uw.logback.es.appender.ElasticSearchAppender">
             <esHost>http://localhost:9200</esHost>
             <index>uw-auth-center2</index>
             <indexType>logs</indexType>

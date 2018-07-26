@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author liliang
  * @since 2018-07-25
  */
-public class ElasticsearchAppender<Event extends ILoggingEvent> extends UnsynchronizedAppenderBase<Event> {
+public class ElasticSearchAppender<Event extends ILoggingEvent> extends UnsynchronizedAppenderBase<Event> {
 
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
 

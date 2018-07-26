@@ -5,7 +5,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.junit.MockitoJUnitRunner;
-import uw.logback.es.appender.ElasticsearchAppender;
+import uw.logback.es.appender.ElasticSearchAppender;
 
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
@@ -16,13 +16,13 @@ import static org.mockito.Mockito.mock;
  * @since 2018/7/25
  */
 @RunWith(MockitoJUnitRunner.class)
-public class ElasticsearchAppenderTest {
+public class ElasticSearchAppenderTest {
 
-    private ElasticsearchAppender appender;
+    private ElasticSearchAppender appender;
 
     @Before
     public void setUp() {
-        appender = new ElasticsearchAppender();
+        appender = new ElasticSearchAppender();
     }
 
     @Test
