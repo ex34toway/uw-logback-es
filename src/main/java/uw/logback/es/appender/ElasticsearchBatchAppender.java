@@ -3,14 +3,13 @@ package uw.logback.es.appender;
 import ch.qos.logback.ext.loggly.io.IoUtils;
 import uw.logback.es.ElasticsearchBatchAppenderMBean;
 import uw.logback.es.util.DiscardingRollingOutputStream;
-import uw.logback.es.util.EncodeUtil;
+import uw.logback.es.util.EncoderUtils;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
-import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -76,7 +75,7 @@ public class ElasticsearchBatchAppender<Event> extends AbstractElasticsearchAppe
                 }
                 String s = new Timestamp(System.currentTimeMillis()) + " - OutputStream is full, discard previous logs" + LINE_SEPARATOR;
                 try {
-                    getFilledBuckets().peekLast().write(s.getBytes(EncodeUtil.LOG_CHARSET));
+                    getFilledBuckets().peekLast().write(s.getBytes(EncoderUtils.LOG_CHARSET));
                     addWarn(s);
                 } catch (IOException e) {
                     addWarn("Exception appending warning message '" + s + "'", e);

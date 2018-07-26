@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE configuration>
 <configuration>
+    <property resource="application.yml" />
     <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
     <springProfile name="default">
         <include
@@ -11,7 +12,17 @@
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
             <encoder charset="UTF-8"
                      class="uw.logback.es.encoder.ElasticsearchEncoder">
+                <throwableConverter
+                        class="uw.logback.es.stacktrace.ShortenedThrowableConverter">
+                    <maxDepthPerThrowable>100</maxDepthPerThrowable>
+                    <maxLength>8096</maxLength>
+                    <shortenedClassNameLength>100</shortenedClassNameLength>
+                    <exclude>org\.springframwork\.*</exclude>
+                    <rootCauseFirst>true</rootCauseFirst>
+                    </throwableConverter>
+                <minBufferSize>1025</minBufferSize>
                 <appname>uw-auth-center2</appname>
+                <host>${host}</host>
             </encoder>
         </appender>
         <root level="INFO">
