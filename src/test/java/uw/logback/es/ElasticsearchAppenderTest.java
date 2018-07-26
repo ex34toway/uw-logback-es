@@ -31,7 +31,7 @@ public class ElasticsearchAppenderTest {
         String loggerName = "elastic-debug-log";
         ILoggingEvent eventToLog = mock(ILoggingEvent.class);
         given(eventToLog.getLoggerName()).willReturn(loggerName);
-        appender.setEndpointUrl("http://192.168.88.16:9200/appaname/logs");
+        appender.setEndpoint("http://192.168.88.16:9200/appaname/logs");
         appender.start();
 
         appender.doAppend(eventToLog);

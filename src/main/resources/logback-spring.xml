@@ -7,9 +7,12 @@
                 resource="org/springframework/boot/logging/logback/console-appender.xml"/>
         <appender name="ES"
                   class="uw.logback.es.appender.ElasticsearchAppender">
-            <endpointUrl>http://192.168.88.16:9200/appaname/logs</endpointUrl>
-            <pattern>%d{"ISO8601", UTC}  %p %t %c %M - %m%n</pattern>
-            <flushIntervalInSeconds>2</flushIntervalInSeconds>
+            <endpoint>http://localhost:9200/appaname/logs</endpoint>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <encoder charset="UTF-8"
+                     class="uw.logback.es.encoder.ElasticsearchEncoder">
+                <appname>uw-auth-center2</appname>
+            </encoder>
         </appender>
         <root level="INFO">
             <appender-ref ref="ES"/>

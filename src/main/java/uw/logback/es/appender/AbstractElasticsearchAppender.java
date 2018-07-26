@@ -1,15 +1,11 @@
 package uw.logback.es.appender;
 
-import ch.qos.logback.classic.PatternLayout;
-import ch.qos.logback.core.Context;
-import ch.qos.logback.core.Layout;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
+import ch.qos.logback.core.encoder.Encoder;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetSocketAddress;
-import java.net.Proxy;
 import java.nio.charset.Charset;
 
 /**
@@ -18,40 +14,46 @@ import java.nio.charset.Charset;
  * @author liliang
  * @since 2018-07-25
  */
-public abstract class AbstractElasticsearchAppender<E> extends UnsynchronizedAppenderBase<E> {
-    public static final String DEFAULT_ENDPOINT_PREFIX = "https://localhost:9200";
+public abstract class AbstractElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Event> {
+
     public static final String DEFAULT_LAYOUT_PATTERN = "%d{\"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'\",UTC} %-5level [%thread] %logger: %m%n";
     protected static final Charset UTF_8 = Charset.forName("UTF-8");
-    protected String endpointUrl;
-    protected String inputKey;
-    protected Layout<E> layout;
-    protected boolean layoutCreatedImplicitly = false;
-    private String pattern;
 
-    private int proxyPort;
-    private String proxyHost;
-    protected Proxy proxy;
+    /**
+     * Elasticsearch Web API endpoint
+     */
+    protected String endpoint;
+
+    /**
+     * Created layout Implicitly?
+     */
+    protected boolean layoutCreatedImplicitly = false;
+
+    /**
+     * pattern
+     */
+    protected String pattern;
+
+    /**
+     * 日志编码器,直接编码成字节交给okhttp
+     */
+    protected Encoder<Event> encoder;
+
+    /**
+     * http 读超时时间
+     */
     private int httpReadTimeoutInMillis = 1000;
 
     @Override
     public void start() {
-        ensureLayout();
-        if (!this.layout.isStarted()) {
-            this.layout.start();
+        if (encoder == null) {
+            addError("No encoder was configured. Use <encoder> to specify the fully qualified class name of the encoder to use");
         }
-        if (this.endpointUrl == null) {
-            if (this.inputKey == null) {
-                addError("inputKey (or alternatively, endpointUrl) must be configured");
-            } else {
-                this.endpointUrl = buildEndpointUrl(this.inputKey);
-            }
-        }
-
-        if (this.proxyHost == null || this.proxyHost.isEmpty()) {
-            // don't set it to Proxy.NO_PROXY (i.e. Proxy.Type.DIRECT) as the meaning is different (user-jvm-proxy-config vs. don't use proxy)
-            this.proxy = null;
-        } else {
-            this.proxy = new Proxy(Proxy.Type.HTTP, new InetSocketAddress(proxyHost, proxyPort));
+        /*
+         * Destinations can be configured via <remoteHost>/<port> OR <destination> but not both!
+         */
+        if (endpoint == null) {
+            addError("No config for <endpoint>");
         }
         super.start();
     }
@@ -59,14 +61,6 @@ public abstract class AbstractElasticsearchAppender<E> extends UnsynchronizedApp
     @Override
     public void stop() {
         super.stop();
-        if (this.layoutCreatedImplicitly) {
-            try {
-                this.layout.stop();
-            } finally {
-                this.layout = null;
-                this.layoutCreatedImplicitly = false;
-            }
-        }
     }
 
     protected byte[] toBytes(final InputStream is) throws IOException {
@@ -91,54 +85,12 @@ public abstract class AbstractElasticsearchAppender<E> extends UnsynchronizedApp
         }
     }
 
-    protected final void ensureLayout() {
-        if (this.layout == null) {
-            this.layout = createLayout();
-            this.layoutCreatedImplicitly = true;
-        }
-        if (this.layout != null) {
-            Context context = this.layout.getContext();
-            if (context == null) {
-                this.layout.setContext(getContext());
-            }
-        }
+    public String getEndpoint() {
+        return endpoint;
     }
 
-    protected Layout<E> createLayout() {
-        PatternLayout layout = new PatternLayout();
-        String pattern = getPattern();
-        if (pattern == null) {
-            pattern = DEFAULT_LAYOUT_PATTERN;
-        }
-        layout.setPattern(pattern);
-        return (Layout<E>) layout;
-    }
-
-    protected String buildEndpointUrl(String inputKey) {
-        return new StringBuilder(DEFAULT_ENDPOINT_PREFIX).append(inputKey).toString();
-    }
-
-    public String getEndpointUrl() {
-        return endpointUrl;
-    }
-
-    public void setEndpointUrl(String endpointUrl) {
-        this.endpointUrl = endpointUrl;
-    }
-
-    public String getInputKey() {
-        return inputKey;
-    }
-
-    public void setInputKey(String inputKey) {
-        String cleaned = inputKey;
-        if (cleaned != null) {
-            cleaned = cleaned.trim();
-        }
-        if ("".equals(cleaned)) {
-            cleaned = null;
-        }
-        this.inputKey = cleaned;
+    public void setEndpoint(String endpoint) {
+        this.endpoint = endpoint;
     }
 
     public String getPattern() {
@@ -149,39 +101,12 @@ public abstract class AbstractElasticsearchAppender<E> extends UnsynchronizedApp
         this.pattern = pattern;
     }
 
-    public Layout<E> getLayout() {
-        return layout;
+    public Encoder<Event> getEncoder() {
+        return encoder;
     }
 
-    public void setLayout(Layout<E> layout) {
-        this.layout = layout;
-    }
-
-    public int getProxyPort() {
-        return proxyPort;
-    }
-
-    public void setProxyPort(int proxyPort) {
-        this.proxyPort = proxyPort;
-    }
-    public void setProxyPort(String proxyPort) {
-        if(proxyPort == null || proxyPort.trim().isEmpty()) {
-            // handle logback configuration default value like "<proxyPort>${logback.loggly.proxy.port:-}</proxyPort>"
-            proxyPort = "0";
-        }
-        this.proxyPort = Integer.parseInt(proxyPort);
-    }
-
-    public String getProxyHost() {
-        return proxyHost;
-    }
-
-    public void setProxyHost(String proxyHost) {
-        if(proxyHost == null || proxyHost.trim().isEmpty()) {
-            // handle logback configuration default value like "<proxyHost>${logback.loggly.proxy.host:-}</proxyHost>"
-            proxyHost = null;
-        }
-        this.proxyHost = proxyHost;
+    public void setEncoder(Encoder<Event> encoder) {
+        this.encoder = encoder;
     }
 
     public int getHttpReadTimeoutInMillis() {

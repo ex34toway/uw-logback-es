@@ -3,13 +3,13 @@ package uw.logback.es.appender;
 import ch.qos.logback.ext.loggly.io.IoUtils;
 import uw.logback.es.ElasticsearchBatchAppenderMBean;
 import uw.logback.es.util.DiscardingRollingOutputStream;
+import uw.logback.es.util.EncodeUtil;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.*;
 import java.lang.management.ManagementFactory;
 import java.net.HttpURLConnection;
-import java.net.URL;
 import java.nio.charset.Charset;
 import java.sql.Timestamp;
 import java.util.concurrent.*;
@@ -22,7 +22,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * @author liliang
  * @since 2018-07-25
  */
-public class ElasticsearchBatchAppender<E> extends AbstractElasticsearchAppender<E> implements ElasticsearchBatchAppenderMBean {
+public class ElasticsearchBatchAppender<Event> extends AbstractElasticsearchAppender<Event> implements ElasticsearchBatchAppenderMBean {
 
     private boolean debug = false;
 
@@ -50,23 +50,13 @@ public class ElasticsearchBatchAppender<E> extends AbstractElasticsearchAppender
 
     private int maxBucketSizeInKilobytes = 1024;
 
-    private Charset charset = Charset.forName("UTF-8");
-
     @Override
-    protected void append(E eventObject) {
+    protected void append(Event eventObject) {
         if (!isStarted()) {
             return;
         }
-        String msg = this.layout.doLayout(eventObject);
-
-        // Issue #21: Make sure messages end with new-line to delimit
-        // individual log events within the batch sent to elasticsearch.
-        if (!msg.endsWith("\n")) {
-            msg += "\n";
-        }
-
         try {
-            outputStream.write(msg.getBytes(charset));
+            outputStream.write(this.encoder.encode(eventObject));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -86,7 +76,7 @@ public class ElasticsearchBatchAppender<E> extends AbstractElasticsearchAppender
                 }
                 String s = new Timestamp(System.currentTimeMillis()) + " - OutputStream is full, discard previous logs" + LINE_SEPARATOR;
                 try {
-                    getFilledBuckets().peekLast().write(s.getBytes(charset));
+                    getFilledBuckets().peekLast().write(s.getBytes(EncodeUtil.LOG_CHARSET));
                     addWarn(s);
                 } catch (IOException e) {
                     addWarn("Exception appending warning message '" + s + "'", e);
@@ -180,37 +170,13 @@ public class ElasticsearchBatchAppender<E> extends AbstractElasticsearchAppender
     }
 
     /**
-     * Creates a configured HTTP connection to a URL (does not open the
-     * connection)
-     *
-     * @param url target URL
-     * @return the newly created HTTP connection
-     * @throws IOException
-     */
-    protected HttpURLConnection getHttpConnection(URL url) throws IOException {
-        HttpURLConnection conn;
-        if (proxy == null) {
-            conn = (HttpURLConnection) url.openConnection();
-        } else {
-            conn = (HttpURLConnection) url.openConnection(proxy);
-        }
-
-        conn.setDoOutput(true);
-        conn.setDoInput(true);
-        conn.setRequestProperty("Content-Type", layout.getContentType() + "; charset=" + charset.name());
-        conn.setRequestMethod("POST");
-        conn.setReadTimeout(getHttpReadTimeoutInMillis());
-        return conn;
-    }
-
-    /**
      * Send log entries to Elasticsearch
      */
     protected void processLogEntries(InputStream in) throws IOException {
         long nanosBefore = System.nanoTime();
         try {
 
-            HttpURLConnection conn = getHttpConnection(new URL(endpointUrl));
+            HttpURLConnection conn = null;//getHttpConnection(new URL(endpointUrl));
             BufferedOutputStream out = new BufferedOutputStream(conn.getOutputStream());
 
             long len = IoUtils.copy(in, out);

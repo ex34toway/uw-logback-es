@@ -1,9 +1,11 @@
 package uw.logback.es.appender;
 
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import uw.httpclient.http.HttpHelper;
+import uw.httpclient.http.HttpInterface;
+import uw.httpclient.json.JsonInterfaceHelper;
+import uw.httpclient.util.BufferRequestBody;
 
 /**
  * Logback日志接收器
@@ -11,48 +13,34 @@ import java.net.URL;
  * @author liliang
  * @since 2018-07-25
  */
-public class ElasticsearchAppender<E> extends AbstractElasticsearchAppender<E> {
+public class ElasticsearchAppender<Event> extends AbstractElasticsearchAppender<Event> {
+
+    /**
+     * HttpInterface
+     */
+    private final HttpInterface httpInterface;
 
     public ElasticsearchAppender() {
+        httpInterface = new JsonInterfaceHelper();
     }
 
     @Override
-    protected void append(E eventObject) {
-        String msg = this.layout.doLayout(eventObject);
-        postToElasticsearch(msg);
-    }
-
-    private void postToElasticsearch(final String event) {
-        try {
-            assert endpointUrl != null;
-            URL endpoint = new URL(endpointUrl);
-            final HttpURLConnection connection;
-            if (proxy == null) {
-                connection = (HttpURLConnection) endpoint.openConnection();
-            } else {
-                connection = (HttpURLConnection) endpoint.openConnection(proxy);
-            }
-            connection.setRequestMethod("POST");
-            connection.setDoOutput(true);
-            connection.addRequestProperty("Content-Type", this.layout.getContentType());
-            connection.connect();
-            sendAndClose(event, connection.getOutputStream());
-            connection.disconnect();
-            final int responseCode = connection.getResponseCode();
-            if (responseCode != 200) {
-                final String message = readResponseBody(connection.getInputStream());
-                addError("Elasticsearch post failed (HTTP " + responseCode + ").  Response body:\n" + message);
-            }
-        } catch (final IOException e) {
-            addError("IOException while attempting to communicate with Elasticsearch", e);
+    protected void append(Event eventObject) {
+        if (!isStarted()) {
+            return;
         }
+        okio.Buffer buffer = new okio.Buffer();
+        buffer.write(this.encoder.encode(eventObject));
+        postToElasticsearch(buffer);
     }
 
-    private void sendAndClose(final String event, final OutputStream output) throws IOException {
+    private void postToElasticsearch(final okio.Buffer buffer) {
         try {
-            output.write(event.getBytes("UTF-8"));
-        } finally {
-            output.close();
+            httpInterface.requestForObject(new Request.Builder().url(endpoint)
+                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8,buffer))
+                    .build(),String.class);
+        } catch (final Exception e) {
+            addError("IOException while attempting to communicate with Elasticsearch", e);
         }
     }
 }
