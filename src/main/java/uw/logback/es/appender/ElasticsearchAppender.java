@@ -249,7 +249,7 @@ public class ElasticsearchAppender<Event extends ILoggingEvent> extends Unsynchr
         }
         try {
             httpInterface.requestForObject(new Request.Builder().url(esHost + getEsBulk())
-                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8, buffer)).build(), String.class);
+                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8, bufferData)).build(), String.class);
         } catch (Exception e) {
             addError(e.getMessage(), e);
         }
