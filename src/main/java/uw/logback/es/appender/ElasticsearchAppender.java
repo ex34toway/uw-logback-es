@@ -152,11 +152,9 @@ public class ElasticsearchAppender<Event extends ILoggingEvent> extends Unsynchr
             JsonGenerator jsonGenerator = jsonFactory.createGenerator(buffer.outputStream(), JsonEncoding.UTF8);
             jsonGenerator.writeStartObject();
             jsonGenerator.writeStringField("@timestamp", EncoderUtils.DATE_FORMAT.format(event.getTimeStamp()));
-            jsonGenerator.writeNumberField("@version", 1);
             jsonGenerator.writeStringField("app_name", appname);
             jsonGenerator.writeStringField("host", host);
             jsonGenerator.writeStringField("level", event.getLevel().toString());
-            jsonGenerator.writeNumberField("level_value", event.getLevel().toInt());
             jsonGenerator.writeStringField("logger_name", event.getLoggerName());
             jsonGenerator.writeStringField("message", event.getMessage());
             IThrowableProxy throwableProxy = event.getThrowableProxy();
