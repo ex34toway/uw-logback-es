@@ -21,12 +21,12 @@ public class EncoderUtils {
     /**
      * 换行符
      */
-    public static final String lineSeparator = System.getProperty("line.separator");
+    private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 
     /**
      * 换行符字节
      */
-    public static final byte[] lineSeparatorBytes = lineSeparator.getBytes(EncoderUtils.LOG_CHARSET);
+    public static final byte[] LINE_SEPARATOR_BYTES = LINE_SEPARATOR.getBytes(EncoderUtils.LOG_CHARSET);
 
     /**
      * 时间格式化器

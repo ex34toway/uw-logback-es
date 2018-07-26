@@ -44,7 +44,7 @@ public class ElasticsearchEncoder<Event extends ILoggingEvent> extends EncoderBa
     private int version = 1;
 
     /**
-     * Min buffer size: include lineSeparator length
+     * Min buffer size: include LINE_SEPARATOR length
      */
     private int minBufferSize = 1024;
 
@@ -83,10 +83,9 @@ public class ElasticsearchEncoder<Event extends ILoggingEvent> extends EncoderBa
             }
             jsonGenerator.writeEndObject();
             jsonGenerator.flush();
-            outputStream.write(EncoderUtils.lineSeparatorBytes);
+            outputStream.write(EncoderUtils.LINE_SEPARATOR_BYTES);
         } catch (Exception e) {
-            addWarn("Error encountered while encoding log event. "
-                    + "Event: " + event, e);
+            addWarn("Error encountered while encoding log event. Event: " + event, e);
             return EMPTY_BYTES;
         }
         return outputStream.toByteArray();
