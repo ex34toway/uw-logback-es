@@ -140,7 +140,7 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
     public void stop() {
         // 赶紧处理一把
         processLogBucket();
-
+        daemonExporter.readyDestroy();
         if (registeredObjectName != null) {
             try {
                 mbeanServer.unregisterMBean(registeredObjectName);
