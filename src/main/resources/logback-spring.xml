@@ -12,20 +12,19 @@
             <index>uw-auth-center2</index>
             <indexType>logs</indexType>
             <pattern>${CONSOLE_LOG_PATTERN}</pattern>
-            <encoder charset="UTF-8"
-                     class="uw.logback.es.encoder.ElasticsearchEncoder">
-                <throwableConverter
-                        class="uw.logback.es.stacktrace.ShortenedThrowableConverter">
-                    <maxDepthPerThrowable>100</maxDepthPerThrowable>
-                    <maxLength>8096</maxLength>
-                    <shortenedClassNameLength>100</shortenedClassNameLength>
-                    <exclude>org\.springframwork\.*</exclude>
-                    <rootCauseFirst>true</rootCauseFirst>
-                    </throwableConverter>
-                <minBufferSize>1025</minBufferSize>
-                <appname>uw-auth-center2</appname>
-                <host>${host}</host>
-            </encoder>
+            <throwableConverter
+                    class="uw.logback.es.stacktrace.ShortenedThrowableConverter">
+                <maxDepthPerThrowable>100</maxDepthPerThrowable>
+                <maxLength>8096</maxLength>
+                <shortenedClassNameLength>100</shortenedClassNameLength>
+                <exclude>org\.springframwork\.*</exclude>
+                <rootCauseFirst>true</rootCauseFirst>
+            </throwableConverter>
+            <maxBatchThreads>5</maxBatchThreads>
+            <maxBytesOfBatch>1025</maxBytesOfBatch>
+            <maxFlushInMilliseconds>1000</maxFlushInMilliseconds>
+            <appname>uw-auth-center2</appname>
+            <host>${host}</host>
         </appender>
         <root level="INFO">
             <appender-ref ref="ES"/>
