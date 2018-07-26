@@ -3,6 +3,7 @@ package uw.logback.es.appender;
 import ch.qos.logback.core.UnsynchronizedAppenderBase;
 import ch.qos.logback.core.encoder.Encoder;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import okhttp3.Request;
 import uw.httpclient.http.HttpHelper;
 import uw.httpclient.http.HttpInterface;
@@ -14,6 +15,10 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
 import java.util.List;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -28,52 +33,51 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
 
     private static final HttpInterface httpInterface = new JsonInterfaceHelper();
-
+    /**
+     * 读写锁
+     */
+    private final Lock batchLock = new ReentrantLock();
     /**
      * Elasticsearch Web API endpoint
      */
     protected String esHost;
-
     /**
      * Elasticsearch bulk api endpoint
      */
     protected String esBulk = "/_bulk";
-
     /**
      * 索引[默认appname]
      */
     protected String index;
-
     /**
      * 索引类型
      */
     protected String indexType = "logs";
-
     /**
      * pattern
      */
     protected String pattern;
-
     /**
      * 日志编码器,直接编码成字节交给okhttp
      */
     protected Encoder<Event> encoder;
-
     /**
-     * 定期刷新Bucket时间毫秒数
+     * 刷新Bucket时间毫秒数
      */
-    private int flushIntervalInMillSeconds = 1000;
-
+    private int maxFlushInMilliseconds = 10000;
     /**
      * 允许最大Bucket数量
      */
-    private int maxNumberOfBuckets = 1;
+    private int maxSizeOfBatch = 500;
+    /**
+     * 允许最大Bucket 字节数。
+     */
+    private int maxBytesOfBatch = 5*1024*1024;
 
     /**
-     * 读写锁
+     * 最大批量线程数。
      */
-    private final Lock bucketLock = new ReentrantLock();
-
+    private int maxBatchThreads = 3;
     /**
      * bucketList
      */
@@ -93,6 +97,11 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
      * JMX注册名称
      */
     private ObjectName registeredObjectName;
+
+    /**
+     * 后台批量线程池。
+     */
+    private ThreadPoolExecutor batchExecutor;
 
     @Override
     protected void append(Event eventObject) {
@@ -133,6 +142,16 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
         daemonExporter = new ElasticsearchDaemonExporter();
         daemonExporter.init();
         daemonExporter.start();
+
+        batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
+                new ThreadFactoryBuilder().setDaemon(true).setNameFormat("logback-es-batch-%d").build(), new RejectedExecutionHandler() {
+            @Override
+            public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
+                System.err.println("Logback ES Batch Task " + r.toString() +
+                        " rejected from " +
+                        executor.toString());
+            }
+        });
         super.start();
     }
 
@@ -164,15 +183,15 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
      * Send log entries to Elasticsearch
      */
     private void processLogBucket(boolean force) {
-        bucketLock.lock();
+        batchLock.lock();
         List<okio.Buffer> bucketData = null;
         try {
-            if (force || bucketList.size() > maxNumberOfBuckets) {
+            if (force || bucketList.size() > maxSizeOfBatch) {
                 bucketData = bucketList;
                 bucketList = Lists.newArrayList();
             }
         } finally {
-            bucketLock.unlock();
+            batchLock.unlock();
         }
         if (bucketData == null) {
             return;
@@ -189,23 +208,22 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
      */
     private void processLogBucket(List<okio.Buffer> bucketList) throws Exception {
         okio.Buffer sendBuffer = new okio.Buffer();
-        for(okio.Buffer bucket : bucketList){
+        for (okio.Buffer bucket : bucketList) {
             sendBuffer.writeAll(bucket);
         }
-        httpInterface.requestForObject(new Request.Builder().url(esHost+getEsBulk())
-                .post(BufferRequestBody.create(HttpHelper.JSON_UTF8,sendBuffer)).build(),String.class);
+        httpInterface.requestForObject(new Request.Builder().url(esHost + getEsBulk())
+                .post(BufferRequestBody.create(HttpHelper.JSON_UTF8, sendBuffer)).build(), String.class);
     }
 
     /**
-     *
      * @param buffer
      */
     private void writeBucket(okio.Buffer buffer) {
-        bucketLock.lock();
+        batchLock.lock();
         try {
             bucketList.add(buffer);
         } finally {
-            bucketLock.unlock();
+            batchLock.unlock();
         }
     }
 
@@ -291,11 +309,16 @@ public class ElasticsearchAppender<Event> extends UnsynchronizedAppenderBase<Eve
             while (isRunning) {
                 try {
                     if (nextScanTime < System.currentTimeMillis()) {
-                        nextScanTime = System.currentTimeMillis() + flushIntervalInMillSeconds;
-                        processLogBucket(false);
+                        nextScanTime = System.currentTimeMillis() + maxFlushInMilliseconds;
+                        batchExecutor.submit(new Runnable() {
+                            @Override
+                            public void run() {
+                                processLogBucket(false);
+                            }
+                        });
                     }
                     // 休息一会儿
-                    Thread.sleep(flushIntervalInMillSeconds / 2);
+                    Thread.sleep(maxFlushInMilliseconds / 2);
                 } catch (Exception e) {
                     addWarn("Exception processing log entries", e);
                 }
