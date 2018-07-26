@@ -244,7 +244,8 @@ public class ElasticsearchAppender<Event extends ILoggingEvent> extends Unsynchr
         } finally {
             batchLock.unlock();
         }
-        if (bufferData == null) {
+        // XXX: 注意,Spring 为了让自己控制Logging,会对Logging重启一把,此时force一把,buffer有可能是空的
+        if (bufferData == null || bufferData.size() == 0) {
             return;
         }
         try {
