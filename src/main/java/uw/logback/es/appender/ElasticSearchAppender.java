@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import okhttp3.Request;
+import org.apache.commons.lang.time.FastDateFormat;
 import uw.httpclient.http.HttpHelper;
 import uw.httpclient.http.HttpInterface;
 import uw.httpclient.json.JsonInterfaceHelper;
@@ -21,6 +22,7 @@ import uw.logback.es.util.EncoderUtils;
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.lang.management.ManagementFactory;
+import java.util.TimeZone;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -65,6 +67,11 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * 索引pattern
      */
     private String indexPattern;
+
+    /**
+     * 索引格式器
+     */
+    public FastDateFormat INDEX_DATE_FORMAT;
 
     /******************************************自定义字段*********************************/
     /**
@@ -183,6 +190,9 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         if(index == null) {
             index = appname;
         }
+        if(indexPattern != null) {
+            INDEX_DATE_FORMAT = FastDateFormat.getInstance(indexPattern, (TimeZone) null);
+        }
         if (jmxMonitoring) {
             String objectName = "ch.qos.logback:type=ElasticsearchBatchAppender,name=ElasticsearchBatchAppender@" + System.identityHashCode(this);
             try {
@@ -227,7 +237,10 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * @return
      */
     private String processIndex() {
-        return index + indexPattern;
+        if(INDEX_DATE_FORMAT == null) {
+            return index;
+        }
+        return index + INDEX_DATE_FORMAT.format(System.currentTimeMillis());
     }
 
     /**
