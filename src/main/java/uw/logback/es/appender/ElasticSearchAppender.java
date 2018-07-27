@@ -102,7 +102,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     /**
      * 批量提交最小字节数
      */
-    private long minBytesOfBatch = 5 * 1024 * 1024;
+    private long maxBytesOfBatch = 5 * 1024 * 1024;
 
     /**
      * 最大批量线程数。
@@ -266,7 +266,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         okio.Buffer bufferData = null;
         batchLock.lock();
         try {
-            if (force || buffer.size() > minBytesOfBatch) {
+            if (force || buffer.size() > maxBytesOfBatch) {
                 bufferData = buffer;
                 buffer = new okio.Buffer();
             }
@@ -342,13 +342,13 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         this.maxFlushInMilliseconds = maxFlushInMilliseconds;
     }
 
-    public long getMinBytesOfBatch() {
-        return minBytesOfBatch;
+    public long getMaxBytesOfBatch() {
+        return maxBytesOfBatch;
     }
 
     @Override
-    public void setMinBytesOfBatch(long minBytesOfBatch) {
-        this.minBytesOfBatch = minBytesOfBatch;
+    public void setMaxBytesOfBatch(long maxBytesOfBatch) {
+        this.maxBytesOfBatch = maxBytesOfBatch;
     }
 
     public int getMaxBatchThreads() {
