@@ -21,6 +21,7 @@ import uw.logback.es.util.EncoderUtils;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
+import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.util.TimeZone;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -42,48 +43,45 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
 
     private static final HttpInterface httpInterface = new JsonInterfaceHelper();
-
+    /**
+     * 读写锁
+     */
+    private final Lock batchLock = new ReentrantLock();
+    /**
+     * 索引格式器
+     */
+    public FastDateFormat INDEX_DATE_FORMAT;
     /**
      * Elasticsearch Web API endpoint
      */
     private String esHost;
-
     /**
      * Elasticsearch bulk api endpoint
      */
     private String esBulk = "/_bulk";
-
     /**
      * 索引
      */
     private String index;
-
     /**
      * 索引类型
      */
     private String indexType = "logs";
 
+    /******************************************自定义字段*********************************/
     /**
      * 索引pattern
      */
     private String indexPattern;
-
-    /**
-     * 索引格式器
-     */
-    public FastDateFormat INDEX_DATE_FORMAT;
-
-    /******************************************自定义字段*********************************/
     /**
      * 主机
      */
     private String host;
+    /******************************************自定义字段*********************************/
     /**
      * 应用名称
      */
-    private String appname;
-    /******************************************自定义字段*********************************/
-
+    private String appName;
     /**
      * Used to create the necessary {@link JsonGenerator}s for generating JSON.
      */
@@ -92,17 +90,10 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             .getFactory()
             .enable(JsonGenerator.Feature.ESCAPE_NON_ASCII)
             .disable(JsonGenerator.Feature.FLUSH_PASSED_TO_STREAM);
-
     /**
      * stack_trace转换器
      */
     private ThrowableHandlingConverter throwableConverter = new ExtendedThrowableProxyConverter();
-
-    /**
-     * 读写锁
-     */
-    private final Lock batchLock = new ReentrantLock();
-
     /**
      * 刷新Bucket时间毫秒数
      */
@@ -111,7 +102,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     /**
      * 批量提交最小字节数
      */
-    private long minBytesOfBatch = 5*1024*1024;
+    private long minBytesOfBatch = 5 * 1024 * 1024;
 
     /**
      * 最大批量线程数。
@@ -148,30 +139,21 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         if (!isStarted()) {
             return;
         }
+        //先写入一个okioBuffer，减少锁时间。
+        okio.Buffer okb = null;
+        try {
+            okb = fillBuffer(event);
+        } catch (Exception e) {
+            addError(e.getMessage(), e);
+        }
+
+        if (okb == null) {
+            return;
+        }
         // SegmentPool pooling
         batchLock.lock();
         try {
-            buffer.writeUtf8("{\"index\":{\"_index\":\"")
-                  .writeUtf8(processIndex())
-                  .writeUtf8("\",\"_type\":\"")
-                  .writeUtf8(getIndexType())
-                  .writeUtf8("\"}}")
-                  .write(EncoderUtils.LINE_SEPARATOR_BYTES);
-            JsonGenerator jsonGenerator = jsonFactory.createGenerator(buffer.outputStream(), JsonEncoding.UTF8);
-            jsonGenerator.writeStartObject();
-            jsonGenerator.writeStringField("@timestamp", EncoderUtils.DATE_FORMAT.format(event.getTimeStamp()));
-            jsonGenerator.writeStringField("app_name", appname);
-            jsonGenerator.writeStringField("host", host);
-            jsonGenerator.writeStringField("level", event.getLevel().toString());
-            jsonGenerator.writeStringField("logger_name", event.getLoggerName());
-            jsonGenerator.writeStringField("message", event.getMessage());
-            IThrowableProxy throwableProxy = event.getThrowableProxy();
-            if (throwableProxy != null) {
-                jsonGenerator.writeStringField("stack_trace", throwableConverter.convert(event));
-            }
-            jsonGenerator.writeEndObject();
-            jsonGenerator.flush();
-            buffer.write(EncoderUtils.LINE_SEPARATOR_BYTES);
+            buffer.writeAll(okb);
         } catch (Exception e) {
             addError(e.getMessage(), e);
         } finally {
@@ -179,18 +161,51 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         }
     }
 
+    /**
+     * 填充okio.buffer。
+     *
+     * @param event
+     * @return
+     * @throws IOException
+     */
+    private okio.Buffer fillBuffer(Event event) throws IOException {
+        okio.Buffer okb = new okio.Buffer();
+        okb.writeUtf8("{\"index\":{\"_index\":\"")
+                .writeUtf8(processIndex())
+                .writeUtf8("\",\"_type\":\"")
+                .writeUtf8(getIndexType())
+                .writeUtf8("\"}}")
+                .write(EncoderUtils.LINE_SEPARATOR_BYTES);
+        JsonGenerator jsonGenerator = jsonFactory.createGenerator(okb.outputStream(), JsonEncoding.UTF8);
+        jsonGenerator.writeStartObject();
+        jsonGenerator.writeStringField("@timestamp", EncoderUtils.DATE_FORMAT.format(event.getTimeStamp()));
+        jsonGenerator.writeStringField("app_name", appName);
+        jsonGenerator.writeStringField("host", host);
+        jsonGenerator.writeStringField("level", event.getLevel().toString());
+        jsonGenerator.writeStringField("logger_name", event.getLoggerName());
+        jsonGenerator.writeStringField("message", event.getMessage());
+        IThrowableProxy throwableProxy = event.getThrowableProxy();
+        if (throwableProxy != null) {
+            jsonGenerator.writeStringField("stack_trace", throwableConverter.convert(event));
+        }
+        jsonGenerator.writeEndObject();
+        jsonGenerator.flush();
+        okb.write(EncoderUtils.LINE_SEPARATOR_BYTES);
+        return okb;
+    }
+
     @Override
     public void start() {
         if (esHost == null) {
             addError("No config for <esHost>");
         }
-        if(appname == null) {
+        if (appName == null) {
             addError("No elasticsearch index was configured. Use <index> to specify the fully qualified class name of the encoder to use");
         }
-        if(index == null) {
-            index = appname;
+        if (index == null) {
+            index = appName;
         }
-        if(indexPattern != null) {
+        if (indexPattern != null) {
             INDEX_DATE_FORMAT = FastDateFormat.getInstance(indexPattern, (TimeZone) null);
         }
         if (jmxMonitoring) {
@@ -209,7 +224,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("logback-es-batch-%d").build(), new RejectedExecutionHandler() {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
-                System.err.println("Logback ES Batch Task " + r.toString() +" rejected from " + executor.toString());
+                addError("Logback ES Batch Task " + r.toString() + " rejected from " + executor.toString());
             }
         });
         super.start();
@@ -237,7 +252,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * @return
      */
     private String processIndex() {
-        if(INDEX_DATE_FORMAT == null) {
+        if (INDEX_DATE_FORMAT == null) {
             return index;
         }
         return index + INDEX_DATE_FORMAT.format(System.currentTimeMillis());
@@ -249,8 +264,8 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * @param force - 是否强制发送
      */
     private void processLogBucket(boolean force) {
-        batchLock.lock();
         okio.Buffer bufferData = null;
+        batchLock.lock();
         try {
             if (force || buffer.size() > minBytesOfBatch) {
                 bufferData = buffer;
@@ -361,12 +376,12 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         this.host = host;
     }
 
-    public String getAppname() {
-        return appname;
+    public String getAppName() {
+        return appName;
     }
 
-    public void setAppname(String appname) {
-        this.appname = appname;
+    public void setAppName(String appName) {
+        this.appName = appName;
     }
 
     public ThrowableHandlingConverter getThrowableConverter() {
@@ -419,7 +434,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
                             }
                         });
                     }
-                    Thread.sleep(maxFlushInMilliseconds / 2);
+                    Thread.sleep(500);
                 } catch (Exception e) {
                     addWarn("Exception processing log entries", e);
                 }

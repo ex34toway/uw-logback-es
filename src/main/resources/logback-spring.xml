@@ -17,7 +17,7 @@
             <indexType>logs</indexType>
             <!-- 自定义日志字段 -->
             <!-- 应用名称 -->
-            <appname>uw-auth-center2</appname>
+            <appName>uw-auth-center2</appName>
             <!-- 当前主机地址 -->
             <host>${host}</host>
             <!-- stack_trace 转换器 -->
