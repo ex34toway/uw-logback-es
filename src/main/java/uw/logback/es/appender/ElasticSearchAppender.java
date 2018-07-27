@@ -34,7 +34,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * @author liliang
  * @since 2018-07-25
  */
-public class ElasticSearchAppender<Event extends ILoggingEvent> extends UnsynchronizedAppenderBase<Event> {
+public class ElasticSearchAppender<Event extends ILoggingEvent> extends UnsynchronizedAppenderBase<Event>
+        implements ElasticSearchAppenderMBean {
 
     private static final MBeanServer mbeanServer = ManagementFactory.getPlatformMBeanServer();
 
@@ -51,7 +52,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     private String esBulk = "/_bulk";
 
     /**
-     * 索引[默认appname]
+     * 索引
      */
     private String index;
 
@@ -61,9 +62,9 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     private String indexType = "logs";
 
     /**
-     * pattern
+     * 索引pattern
      */
-    private String pattern;
+    private String indexPattern;
 
     /******************************************自定义字段*********************************/
     /**
@@ -111,14 +112,14 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     private int maxBatchThreads = 3;
 
     /**
-     * bucketList
-     */
-    private okio.Buffer buffer = new okio.Buffer();
-
-    /**
      * 是否开启JMX
      */
     private boolean jmxMonitoring = false;
+
+    /**
+     * bucketList
+     */
+    private okio.Buffer buffer = new okio.Buffer();
 
     /**
      * 后台线程
@@ -176,8 +177,11 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         if (esHost == null) {
             addError("No config for <esHost>");
         }
-        if (index == null) {
+        if(appname == null) {
             addError("No elasticsearch index was configured. Use <index> to specify the fully qualified class name of the encoder to use");
+        }
+        if(index == null) {
+            index = appname;
         }
         if (jmxMonitoring) {
             String objectName = "ch.qos.logback:type=ElasticsearchBatchAppender,name=ElasticsearchBatchAppender@" + System.identityHashCode(this);
@@ -204,7 +208,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     @Override
     public void stop() {
         // 赶紧处理一把
-        processLogBucket(true);
+        forceProcessLogBucket();
         daemonExporter.readyDestroy();
         batchExecutor.shutdown();
         if (registeredObjectName != null) {
@@ -223,7 +227,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * @return
      */
     private String processIndex() {
-        return index;
+        return index + indexPattern;
     }
 
     /**
@@ -252,6 +256,14 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         } catch (Exception e) {
             addError(e.getMessage(), e);
         }
+    }
+
+    /**
+     * 强制日志提交
+     */
+    @Override
+    public void forceProcessLogBucket() {
+        processLogBucket(true);
     }
 
     public String getEsHost() {
@@ -286,18 +298,19 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         this.indexType = indexType;
     }
 
-    public String getPattern() {
-        return pattern;
+    public String getIndexPattern() {
+        return indexPattern;
     }
 
-    public void setPattern(String pattern) {
-        this.pattern = pattern;
+    public void setIndexPattern(String indexPattern) {
+        this.indexPattern = indexPattern;
     }
 
     public long getMaxFlushInMilliseconds() {
         return maxFlushInMilliseconds;
     }
 
+    @Override
     public void setMaxFlushInMilliseconds(long maxFlushInMilliseconds) {
         this.maxFlushInMilliseconds = maxFlushInMilliseconds;
     }
@@ -306,6 +319,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         return maxBytesOfBatch;
     }
 
+    @Override
     public void setMaxBytesOfBatch(long maxBytesOfBatch) {
         this.maxBytesOfBatch = maxBytesOfBatch;
     }
@@ -316,6 +330,14 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
 
     public void setMaxBatchThreads(int maxBatchThreads) {
         this.maxBatchThreads = maxBatchThreads;
+    }
+
+    public boolean isJmxMonitoring() {
+        return jmxMonitoring;
+    }
+
+    public void setJmxMonitoring(boolean jmxMonitoring) {
+        this.jmxMonitoring = jmxMonitoring;
     }
 
     public String getHost() {
