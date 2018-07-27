@@ -31,8 +31,8 @@
             </throwableConverter>
             <!-- 批量提交日志最大线程数 -->
             <maxBatchThreads>5</maxBatchThreads>
-            <!-- 批量最大Buff字节数 -->
-            <maxBytesOfBatch>1025</maxBytesOfBatch>
+            <!-- 批量提交最小字节数 -->
+            <minBytesOfBatch>1025</minBytesOfBatch>
             <!-- 最大刷新时间间隔 单位毫秒 -->
             <maxFlushInMilliseconds>1000</maxFlushInMilliseconds>
             <!-- 开启JMX监控支持,默认未开启 -->

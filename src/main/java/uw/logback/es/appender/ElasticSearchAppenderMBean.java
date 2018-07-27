@@ -21,9 +21,9 @@ public interface ElasticSearchAppenderMBean {
     void setMaxFlushInMilliseconds(long maxFlushInMilliseconds);
 
     /**
-     * setMaxBytesOfBatch
+     * setMinBytesOfBatch
      *
      * @param maxBytesOfBatch
      */
-    void setMaxBytesOfBatch(long maxBytesOfBatch);
+    void setMinBytesOfBatch(long maxBytesOfBatch);
 }
