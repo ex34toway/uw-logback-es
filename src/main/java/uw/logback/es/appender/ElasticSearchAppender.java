@@ -232,10 +232,9 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
 
     @Override
     public void stop() {
-        // 赶紧处理一把
-        forceProcessLogBucket();
         daemonExporter.readyDestroy();
         batchExecutor.shutdown();
+        forceProcessLogBucket();
         if (registeredObjectName != null) {
             try {
                 mbeanServer.unregisterMBean(registeredObjectName);
