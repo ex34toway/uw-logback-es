@@ -1,7 +1,0 @@
-uw:
-  logback:
-    es:
-      username: admin
-      password: admin
-      clusters: http://localhost:9200
-host: 192.168.88.72
