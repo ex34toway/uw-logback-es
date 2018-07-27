@@ -216,10 +216,6 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
                 addWarn("Exception registering mbean '" + objectName + "'", e);
             }
         }
-        daemonExporter = new ElasticsearchDaemonExporter();
-        daemonExporter.init();
-        daemonExporter.start();
-
         batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("logback-es-batch-%d").build(), new RejectedExecutionHandler() {
             @Override
@@ -227,6 +223,10 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
                 addError("Logback ES Batch Task " + r.toString() + " rejected from " + executor.toString());
             }
         });
+
+        daemonExporter = new ElasticsearchDaemonExporter();
+        daemonExporter.init();
+        daemonExporter.start();
         super.start();
     }
 
