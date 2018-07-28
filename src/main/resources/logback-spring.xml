@@ -9,6 +9,9 @@
         <appender name="ES"
                   class="uw.logback.es.appender.ElasticSearchAppender">
             <esHost>http://localhost:9200</esHost>
+            <!-- Basic Authentication -->
+            <esUsername>username</esUsername>
+            <esPassword>password</esPassword>
             <!-- 索引名称,默认使用appanme -->
             <index>uw-auth-center2</index>
             <!-- 索引Pattern,生成index-indexPattern的索引,目前只支持时间格式器,比如:yyyy-MM-dd -->

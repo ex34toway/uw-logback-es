@@ -11,7 +11,9 @@ import com.fasterxml.jackson.databind.MappingJsonFactory;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import okhttp3.Credentials;
 import okhttp3.Request;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.time.FastDateFormat;
 import uw.httpclient.http.HttpHelper;
 import uw.httpclient.http.HttpInterface;
@@ -59,6 +61,18 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * Elasticsearch bulk api endpoint
      */
     private String esBulk = "/_bulk";
+    /**
+     * es用户名
+     */
+    private String esUsername;
+    /**
+     * es密码
+     */
+    private String esPassword;
+    /**
+     * 是否需要Basic Authentication
+     */
+    private boolean needBasicAuth;
     /**
      * 索引
      */
@@ -216,6 +230,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
                 addWarn("Exception registering mbean '" + objectName + "'", e);
             }
         }
+        this.needBasicAuth = StringUtils.isNotBlank(esUsername) && StringUtils.isNotBlank(esPassword);
         batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("logback-es-batch-%d").build(), new RejectedExecutionHandler() {
             @Override
@@ -280,8 +295,12 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             return;
         }
         try {
-            httpInterface.requestForObject(new Request.Builder().url(esHost + getEsBulk())
-                    .post(BufferRequestBody.create(HttpHelper.JSON_UTF8, bufferData)).build(), String.class);
+            Request.Builder requestBuilder = new Request.Builder().url(esHost + getEsBulk());
+            if(needBasicAuth) {
+                requestBuilder.header("Authorization", Credentials.basic(esUsername, esPassword));
+            }
+            httpInterface.requestForObject(requestBuilder.post(BufferRequestBody.create(HttpHelper.JSON_UTF8, bufferData))
+                    .build(), String.class);
         } catch (Exception e) {
             addError(e.getMessage(), e);
         }
@@ -309,6 +328,22 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
 
     public void setEsBulk(String esBulk) {
         this.esBulk = esBulk;
+    }
+
+    public String getEsUsername() {
+        return esUsername;
+    }
+
+    public void setEsUsername(String esUsername) {
+        this.esUsername = esUsername;
+    }
+
+    public String getEsPassword() {
+        return esPassword;
+    }
+
+    public void setEsPassword(String esPassword) {
+        this.esPassword = esPassword;
     }
 
     public String getIndex() {
