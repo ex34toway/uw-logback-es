@@ -241,7 +241,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             }
         } else {
             // 从环境变量中取
-            setAppHost(System.getProperty(getAppHost()));
+            setAppHost(System.getenv(getAppHost()));
         }
         this.needBasicAuth = StringUtils.isNotBlank(esUsername) && StringUtils.isNotBlank(esPassword);
         batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
