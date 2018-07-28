@@ -225,6 +225,8 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         });
 
         daemonExporter = new ElasticsearchDaemonExporter();
+        daemonExporter.setName("logback-es-monitor");
+        daemonExporter.setDaemon(true);
         daemonExporter.init();
         daemonExporter.start();
         super.start();
