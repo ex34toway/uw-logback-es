@@ -5,7 +5,7 @@
     <groupId>com.umtone</groupId>
     <artifactId>uw-logback-es</artifactId>
     <packaging>jar</packaging>
-    <version>0.0.3</version>
+    <version>0.0.6</version>
 
     <name>uw-logback-es</name>
 	<description>uw-logback-es</description>
