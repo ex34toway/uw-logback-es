@@ -198,7 +198,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         jsonGenerator.writeStringField("app_host", appHost);
         jsonGenerator.writeStringField("level", event.getLevel().toString());
         jsonGenerator.writeStringField("logger_name", event.getLoggerName());
-        jsonGenerator.writeStringField("message", event.getMessage());
+        jsonGenerator.writeStringField("message", event.getFormattedMessage());
         IThrowableProxy throwableProxy = event.getThrowableProxy();
         if (throwableProxy != null) {
             jsonGenerator.writeStringField("stack_trace", throwableConverter.convert(event));
