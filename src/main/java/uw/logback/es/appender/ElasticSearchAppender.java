@@ -25,6 +25,7 @@ import javax.management.MBeanServer;
 import javax.management.ObjectName;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
+import java.net.InetAddress;
 import java.util.TimeZone;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.SynchronousQueue;
@@ -88,9 +89,9 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      */
     private String indexPattern;
     /**
-     * 主机
+     * 应用主机
      */
-    private String host;
+    private String appHost;
     /******************************************自定义字段*********************************/
     /**
      * 应用名称
@@ -194,7 +195,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField("@timestamp", EncoderUtils.DATE_FORMAT.format(event.getTimeStamp()));
         jsonGenerator.writeStringField("app_name", appName);
-        jsonGenerator.writeStringField("host", host);
+        jsonGenerator.writeStringField("app_host", appHost);
         jsonGenerator.writeStringField("level", event.getLevel().toString());
         jsonGenerator.writeStringField("logger_name", event.getLoggerName());
         jsonGenerator.writeStringField("message", event.getMessage());
@@ -229,6 +230,18 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             } catch (Exception e) {
                 addWarn("Exception registering mbean '" + objectName + "'", e);
             }
+        }
+        // 默认本机地址
+        if(StringUtils.isBlank(getAppHost())) {
+            try {
+                InetAddress address = InetAddress.getLocalHost();
+                setAppHost(address.getHostAddress());
+            } catch (Exception e) {
+                addError(e.getMessage(), e);
+            }
+        } else {
+            // 从环境变量中取
+            setAppHost(System.getProperty(getAppHost()));
         }
         this.needBasicAuth = StringUtils.isNotBlank(esUsername) && StringUtils.isNotBlank(esPassword);
         batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
@@ -404,12 +417,12 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         this.jmxMonitoring = jmxMonitoring;
     }
 
-    public String getHost() {
-        return host;
+    public String getAppHost() {
+        return appHost;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public void setAppHost(String appHost) {
+        this.appHost = appHost;
     }
 
     public String getAppName() {

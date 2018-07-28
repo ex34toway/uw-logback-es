@@ -22,7 +22,7 @@
             <!-- 应用名称 -->
             <appName>uw-auth-center2</appName>
             <!-- 当前主机地址 -->
-            <host>${host}</host>
+            <appHost>SPRING_CLOUD_CONSUL_DISCOVERY_IP_ADDRESS</appHost>
             <!-- stack_trace 转换器 -->
             <throwableConverter
                     class="uw.logback.es.stacktrace.ShortenedThrowableConverter">
