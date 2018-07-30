@@ -287,21 +287,19 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
     /**
      * Send buffer to Elasticsearch
      *
-     * @param force - 是否强制发送
      */
-    private void processLogBucket(boolean force) {
+    private void processLogBucket() {
         okio.Buffer bufferData = null;
         batchLock.lock();
         try {
-            if (force || buffer.size() > maxBytesOfBatch) {
+            if (buffer.size() > maxBytesOfBatch) {
                 bufferData = buffer;
                 buffer = new okio.Buffer();
             }
         } finally {
             batchLock.unlock();
         }
-        // XXX: 注意,Spring 为了让自己控制Logging,会对Logging重启一把,此时force一把,buffer有可能是空的
-        if (bufferData == null || bufferData.size() == 0) {
+        if (bufferData == null) {
             return;
         }
         try {
@@ -321,7 +319,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      */
     @Override
     public void forceProcessLogBucket() {
-        processLogBucket(true);
+        processLogBucket();
     }
 
     public String getEsHost() {
@@ -471,12 +469,12 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         public void run() {
             while (isRunning) {
                 try {
-                    if (nextScanTime < System.currentTimeMillis()) {
+                    if (buffer.size() > maxBytesOfBatch || nextScanTime < System.currentTimeMillis()) {
                         nextScanTime = System.currentTimeMillis() + maxFlushInMilliseconds;
                         batchExecutor.submit(new Runnable() {
                             @Override
                             public void run() {
-                                processLogBucket(false);
+                                processLogBucket();
                             }
                         });
                     }
