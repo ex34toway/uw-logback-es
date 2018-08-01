@@ -292,7 +292,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         okio.Buffer bufferData = null;
         batchLock.lock();
         try {
-            if (buffer.size() > maxBytesOfBatch) {
+            if (buffer.size() > 0) {
                 bufferData = buffer;
                 buffer = new okio.Buffer();
             }
