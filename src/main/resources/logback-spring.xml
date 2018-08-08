@@ -34,6 +34,8 @@
             </throwableConverter>
             <!-- 批量提交日志最大线程数 -->
             <maxBatchThreads>5</maxBatchThreads>
+            <!-- 最大批量线程队列数 -->
+            <maxBatchQueueSize>10</maxBatchQueueSize>
             <!-- 批量提交最小字节数 -->
             <maxBytesOfBatch>1025</maxBytesOfBatch>
             <!-- 最大刷新时间间隔 单位毫秒 -->

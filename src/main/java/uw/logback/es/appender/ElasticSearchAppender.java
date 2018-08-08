@@ -27,10 +27,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.net.InetAddress;
 import java.util.TimeZone;
-import java.util.concurrent.RejectedExecutionHandler;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -123,6 +120,11 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
      * 最大批量线程数。
      */
     private int maxBatchThreads = 3;
+
+    /**
+     * 最大批量线程队列数
+     */
+    private int maxBatchQueueSize = 10;
 
     /**
      * 是否开启JMX
@@ -241,7 +243,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             }
         }
         this.needBasicAuth = StringUtils.isNotBlank(esUsername) && StringUtils.isNotBlank(esPassword);
-        batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new SynchronousQueue<>(),
+        batchExecutor = new ThreadPoolExecutor(1, maxBatchThreads, 30, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(maxBatchQueueSize),
                 new ThreadFactoryBuilder().setDaemon(true).setNameFormat("logback-es-batch-%d").build(), new RejectedExecutionHandler() {
             @Override
             public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
@@ -402,6 +404,14 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
 
     public void setMaxBatchThreads(int maxBatchThreads) {
         this.maxBatchThreads = maxBatchThreads;
+    }
+
+    public int getMaxBatchQueueSize() {
+        return maxBatchQueueSize;
+    }
+
+    public void setMaxBatchQueueSize(int maxBatchQueueSize) {
+        this.maxBatchQueueSize = maxBatchQueueSize;
     }
 
     public boolean isJmxMonitoring() {
