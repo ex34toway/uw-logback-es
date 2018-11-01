@@ -10,20 +10,33 @@ public interface ElasticSearchAppenderMBean {
 
     /**
      * force processLogEntries
+     *
      */
     void forceProcessLogBucket();
 
     /**
-     * setMaxFlushInMilliseconds
+     * getMaxFlushInMilliseconds
+     *
+     */
+    long getMaxFlushInMilliseconds();
+
+    /**
+     * changeMaxFlushInMilliseconds
      *
      * @param maxFlushInMilliseconds
      */
-    void setMaxFlushInMilliseconds(long maxFlushInMilliseconds);
+    void changeMaxFlushInMilliseconds(long maxFlushInMilliseconds);
 
     /**
-     * setMaxBytesOfBatch
+     * getMaxBytesOfBatch
+     *
+     */
+    long getMaxBytesOfBatch();
+
+    /**
+     * changeMaxBytesOfBatch
      *
      * @param maxBytesOfBatch
      */
-    void setMaxBytesOfBatch(long maxBytesOfBatch);
+    void changeMaxBytesOfBatch(long maxBytesOfBatch);
 }

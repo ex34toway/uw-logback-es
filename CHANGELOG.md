@@ -3,6 +3,7 @@
 # uw-logback-es
 
 #### 更新日志
+    0.1.4 MBean属性操作调整
     0.1.3 有日志就写
     0.1.2 条件是或达到
     0.1.1 Bug FIX getMessage => getFormattedMessage

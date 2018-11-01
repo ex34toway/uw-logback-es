@@ -226,7 +226,7 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
             INDEX_DATE_FORMAT = FastDateFormat.getInstance(indexPattern, (TimeZone) null);
         }
         if (jmxMonitoring) {
-            String objectName = "ch.qos.logback:type=ElasticsearchBatchAppender,name=ElasticsearchBatchAppender@" + System.identityHashCode(this);
+            String objectName = "uw.logback.es:type=ElasticsearchBatchAppender,name=ElasticsearchBatchAppender@" + System.identityHashCode(this);
             try {
                 registeredObjectName = mbeanServer.registerMBean(this, new ObjectName(objectName)).getObjectName();
             } catch (Exception e) {
@@ -380,20 +380,30 @@ public class ElasticSearchAppender<Event extends ILoggingEvent> extends Unsynchr
         this.indexPattern = indexPattern;
     }
 
+    @Override
     public long getMaxFlushInMilliseconds() {
         return maxFlushInMilliseconds;
     }
 
     @Override
+    public void changeMaxFlushInMilliseconds(long maxFlushInMilliseconds) {
+        setMaxFlushInMilliseconds(maxFlushInMilliseconds);
+    }
+
     public void setMaxFlushInMilliseconds(long maxFlushInMilliseconds) {
         this.maxFlushInMilliseconds = maxFlushInMilliseconds;
     }
 
+    @Override
     public long getMaxBytesOfBatch() {
         return maxBytesOfBatch;
     }
 
     @Override
+    public void changeMaxBytesOfBatch(long maxBytesOfBatch) {
+        setMaxBytesOfBatch(maxBytesOfBatch);
+    }
+
     public void setMaxBytesOfBatch(long maxBytesOfBatch) {
         this.maxBytesOfBatch = maxBytesOfBatch;
     }
